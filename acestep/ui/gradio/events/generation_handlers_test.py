@@ -423,9 +423,8 @@ class LoadMetadataLmCodesTests(unittest.TestCase):
             })
             result = generation_handlers.load_metadata(file_obj, llm_handler)
 
-        # think is at return position 30 (0-indexed)
-        think_value = result[30]
-        audio_codes_value = result[31]
+        think_value = result[32]
+        audio_codes_value = result[33]
         self.assertFalse(think_value, "think should be False when audio_codes present")
         self.assertEqual(audio_codes_value, "<|audio_code_1|><|audio_code_2|>")
 
@@ -448,7 +447,7 @@ class LoadMetadataLmCodesTests(unittest.TestCase):
             })
             result = generation_handlers.load_metadata(file_obj, llm_handler)
 
-        think_value = result[30]
+        think_value = result[32]
         self.assertTrue(think_value, "think should remain True when audio_codes is empty")
 
 

@@ -103,7 +103,7 @@ def capture_current_params(
     text2music_audio_code_string, repainting_start, repainting_end,
     instruction_display_gen, audio_cover_strength, cover_noise_strength, task_type,
     use_adg, cfg_interval_start, cfg_interval_end, shift, infer_method,
-    custom_timesteps, audio_format, lm_temperature,
+    custom_timesteps, audio_format, mp3_bitrate, mp3_sample_rate, lm_temperature,
     think_checkbox, lm_cfg_scale, lm_top_k, lm_top_p, lm_negative_prompt,
     use_cot_metas, use_cot_caption, use_cot_language,
     constrained_decoding_debug, allow_lm_batch, auto_score, auto_lrc,
@@ -147,6 +147,8 @@ def capture_current_params(
         "infer_method": infer_method,
         "custom_timesteps": custom_timesteps,
         "audio_format": audio_format,
+        "mp3_bitrate": mp3_bitrate,
+        "mp3_sample_rate": mp3_sample_rate,
         "lm_temperature": lm_temperature,
         "think_checkbox": think_checkbox,
         "lm_cfg_scale": lm_cfg_scale,
@@ -187,7 +189,7 @@ def restore_batch_parameters(current_batch_index, batch_queue):
     """
     if current_batch_index not in batch_queue:
         gr.Warning(t("messages.no_batch_data"))
-        return [gr.update()] * 26
+        return [gr.update()] * 30
 
     batch_data = batch_queue[current_batch_index]
     params = batch_data.get("generation_params", {})
@@ -200,6 +202,9 @@ def restore_batch_parameters(current_batch_index, batch_queue):
     vocal_language = params.get("vocal_language", "unknown")
     audio_duration = params.get("audio_duration", -1)
     batch_size_input = params.get("batch_size_input", 2)
+    audio_format = params.get("audio_format", "flac")
+    mp3_bitrate = params.get("mp3_bitrate", "128k")
+    mp3_sample_rate = params.get("mp3_sample_rate", 48000)
     inference_steps = params.get("inference_steps", 8)
     lm_temperature = params.get("lm_temperature", 0.85)
     lm_cfg_scale = params.get("lm_cfg_scale", 2.0)
@@ -228,11 +233,12 @@ def restore_batch_parameters(current_batch_index, batch_queue):
 
     return (
         codes_main, captions, lyrics, bpm, key_scale, time_signature,
-        vocal_language, audio_duration, batch_size_input, inference_steps,
+        vocal_language, audio_duration, batch_size_input, audio_format, mp3_bitrate, mp3_sample_rate, inference_steps,
         lm_temperature, lm_cfg_scale, lm_top_k, lm_top_p, think_checkbox,
         use_cot_caption, use_cot_language, allow_lm_batch,
         track_name, complete_track_classes,
         enable_normalization, normalization_db,
         fade_in_duration, fade_out_duration,
         latent_shift, latent_rescale,
+        gr.update(visible=audio_format == "mp3"),
     )

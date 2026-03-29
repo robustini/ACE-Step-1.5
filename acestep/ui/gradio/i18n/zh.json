@@ -159,7 +159,11 @@
     "random_seed_info": "启用以自动生成种子。",
     "audio_format_label": "音频格式",
     "audio_format_info": "保存文件的音频格式。",
-    "use_adg_label": "使用 ADG",
+
+    "mp3_bitrate_label": "MP3 比特率",
+    "mp3_bitrate_info": "MP3 编码比特率，默认 128 kbps。",
+    "mp3_sample_rate_label": "MP3 采样率",
+    "mp3_sample_rate_info": "MP3 输出采样率，默认 48 kHz，也可选 44.1 kHz。",    "use_adg_label": "使用 ADG",
     "use_adg_info": "启用角域引导。",
     "shift_label": "Shift",
     "shift_info": "时间步偏移因子，仅对 base 模型生效 (范围 1.0~5.0，默认 3.0)。对 turbo 模型无效。",

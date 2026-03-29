@@ -27,6 +27,8 @@ _LOAD_METADATA_GENERATION_OUTPUT_KEYS = (
     "infer_method",
     "custom_timesteps",
     "audio_format",
+    "mp3_bitrate",
+    "mp3_sample_rate",
     "lm_temperature",
     "lm_cfg_scale",
     "lm_top_k",
@@ -55,6 +57,7 @@ def _build_load_metadata_outputs(context: GenerationWiringContext) -> list[Any]:
     outputs = [
         generation_section[key] for key in _LOAD_METADATA_GENERATION_OUTPUT_KEYS
     ]
+    outputs.append(generation_section["mp3_controls_row"])
     outputs.append(results_section["is_format_caption_state"])
     return outputs
 

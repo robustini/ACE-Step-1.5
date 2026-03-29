@@ -13,7 +13,6 @@ import json
 import os
 import subprocess
 import hashlib
-import tempfile
 from pathlib import Path
 from typing import Union, Optional, List, Tuple
 import torch
@@ -113,11 +112,6 @@ def normalize_audio(audio_data: Union[torch.Tensor, np.ndarray], target_db: floa
 
 class AudioSaver:
     """Audio saving and transcoding utility class"""
-
-    MP3_DEFAULT_BITRATE = "320k"
-    MP3_ALLOWED_BITRATES = {"128k", "192k", "256k", "320k"}
-    MP3_DEFAULT_SAMPLE_RATE = 44100
-    MP3_ALLOWED_SAMPLE_RATES = {44100, 48000}
     
     def __init__(self, default_format: str = "flac"):
         """
@@ -131,65 +125,6 @@ class AudioSaver:
             logger.warning(f"Unsupported format {default_format}, using 'flac'")
             self.default_format = "flac"
     
-    def _save_mp3(
-        self,
-        audio_tensor: torch.Tensor,
-        output_path: Path,
-        input_sample_rate: int,
-        mp3_bitrate: Optional[str] = None,
-        mp3_sample_rate: Optional[int] = None,
-    ) -> None:
-        """Save MP3 with explicit ffmpeg settings and 320k/44.1k defaults."""
-        bitrate = str(mp3_bitrate or self.MP3_DEFAULT_BITRATE).strip().lower()
-        if bitrate not in self.MP3_ALLOWED_BITRATES:
-            bitrate = self.MP3_DEFAULT_BITRATE
-
-        try:
-            target_sample_rate = int(mp3_sample_rate or self.MP3_DEFAULT_SAMPLE_RATE)
-        except Exception:
-            target_sample_rate = self.MP3_DEFAULT_SAMPLE_RATE
-        if target_sample_rate not in self.MP3_ALLOWED_SAMPLE_RATES:
-            target_sample_rate = self.MP3_DEFAULT_SAMPLE_RATE
-
-        tensor_to_save = audio_tensor
-        if int(input_sample_rate) != int(target_sample_rate):
-            tensor_to_save = torchaudio.functional.resample(audio_tensor, int(input_sample_rate), int(target_sample_rate))
-
-        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_wav:
-            temp_wav_path = Path(temp_wav.name)
-
-        try:
-            torchaudio.save(
-                str(temp_wav_path),
-                tensor_to_save,
-                int(target_sample_rate),
-                channels_first=True,
-                backend='soundfile',
-            )
-            cmd = [
-                'ffmpeg', '-y', '-hide_banner', '-loglevel', 'error',
-                '-i', str(temp_wav_path),
-                '-codec:a', 'libmp3lame',
-                '-ar', str(int(target_sample_rate)),
-                '-b:a', bitrate,
-                '-abr', '0',
-                str(output_path),
-            ]
-            subprocess.run(cmd, check=True, capture_output=True, timeout=120)
-            logger.debug(f"[AudioSaver] Saved audio to {output_path} (mp3, {target_sample_rate}Hz, {bitrate})")
-        except FileNotFoundError as e:
-            raise RuntimeError("ffmpeg executable not found. Install ffmpeg or add it to PATH to export MP3 files.") from e
-        except subprocess.TimeoutExpired as e:
-            raise RuntimeError("ffmpeg MP3 export timed out after 120 seconds.") from e
-        except subprocess.CalledProcessError as e:
-            stderr = e.stderr.decode('utf-8', errors='ignore') if e.stderr else str(e)
-            raise RuntimeError(f"ffmpeg MP3 export failed: {stderr}") from e
-        finally:
-            try:
-                temp_wav_path.unlink(missing_ok=True)
-            except Exception:
-                logger.warning(f"[AudioSaver] Failed to remove temporary WAV file: {temp_wav_path}")
-
     def save_audio(
         self,
         audio_data: Union[torch.Tensor, np.ndarray],
@@ -197,8 +132,8 @@ class AudioSaver:
         sample_rate: int = 48000,
         format: Optional[str] = None,
         channels_first: bool = True,
-        mp3_bitrate: Optional[str] = None,
-        mp3_sample_rate: Optional[int] = None,
+        mp3_bitrate: str = "128k",
+        mp3_sample_rate: int = 48000,
     ) -> str:
         """
         Save audio data to file
@@ -209,8 +144,8 @@ class AudioSaver:
             sample_rate: Sample rate
             format: Audio format ('flac', 'wav', 'mp3', 'wav32', 'opus', 'aac'), defaults to default_format
             channels_first: If True, tensor format is [channels, samples], else [samples, channels]
-            mp3_bitrate: Optional MP3 bitrate override (128k/192k/256k/320k)
-            mp3_sample_rate: Optional MP3 sample rate override (44100/48000)
+            mp3_bitrate: MP3 bitrate used when format is mp3
+            mp3_sample_rate: MP3 output sample rate used when format is mp3
         
         Returns:
             Actual saved file path
@@ -254,22 +189,43 @@ class AudioSaver:
                 if audio_tensor.shape[0] > audio_tensor.shape[1]:
                     audio_tensor = audio_tensor.T
         
-        # Ensure memory is contiguous
+        if audio_tensor.dim() == 1:
+            audio_tensor = audio_tensor.unsqueeze(0)
+
         audio_tensor = audio_tensor.contiguous()
-        
-        # Select backend and save
+
+        bitrate_value = str(mp3_bitrate or "128k").strip().lower()
+        if bitrate_value not in {"128k", "192k", "256k", "320k"}:
+            bitrate_value = "128k"
+        try:
+            mp3_sample_rate_value = int(mp3_sample_rate or 48000)
+        except Exception:
+            mp3_sample_rate_value = 48000
+        if mp3_sample_rate_value not in {48000, 44100}:
+            mp3_sample_rate_value = 48000
+
         try:
             if format == "mp3":
-                self._save_mp3(
-                    audio_tensor,
-                    output_path,
-                    sample_rate,
-                    mp3_bitrate=mp3_bitrate,
-                    mp3_sample_rate=mp3_sample_rate,
-                )
+                pcm = audio_tensor.transpose(0, 1).numpy().astype(np.float32, copy=False)
+                channels = pcm.shape[1] if pcm.ndim == 2 else 1
+                cmd = [
+                    "ffmpeg", "-y",
+                    "-f", "f32le",
+                    "-ar", str(sample_rate),
+                    "-ac", str(channels),
+                    "-i", "pipe:0",
+                    "-vn",
+                    "-ar", str(mp3_sample_rate_value),
+                    "-b:a", bitrate_value,
+                    "-codec:a", "libmp3lame",
+                    str(output_path),
+                ]
+                proc = subprocess.run(cmd, input=pcm.tobytes(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                if proc.returncode != 0:
+                    raise RuntimeError(proc.stderr.decode("utf-8", errors="ignore") or "ffmpeg mp3 encode failed")
+                logger.debug(f"[AudioSaver] Saved audio to {output_path} (mp3, {bitrate_value}, {mp3_sample_rate_value}Hz)")
                 return str(output_path)
-            elif format in ["opus", "aac"]:
-                # Opus and AAC use ffmpeg backend
+            if format in ["opus", "aac"]:
                 torchaudio.save(
                     str(output_path),
                     audio_tensor,
@@ -316,9 +272,6 @@ class AudioSaver:
             return str(output_path)
             
         except Exception as e:
-            if format == "mp3":
-                logger.error(f"[AudioSaver] MP3 export failed without fallback: {e}")
-                raise
             try:
                 import soundfile as sf
                 audio_np = audio_tensor.transpose(0, 1).numpy()  # -> [samples, channels]
@@ -344,8 +297,6 @@ class AudioSaver:
         output_path: Union[str, Path],
         output_format: str,
         remove_input: bool = False,
-        mp3_bitrate: Optional[str] = None,
-        mp3_sample_rate: Optional[int] = None,
     ) -> str:
         """
         Convert audio format
@@ -355,9 +306,7 @@ class AudioSaver:
             output_path: Output audio file path
             output_format: Target format ('flac', 'wav', 'mp3', 'wav32', 'opus', 'aac')
             remove_input: Whether to delete input file
-            mp3_bitrate: Optional MP3 bitrate override (128k/192k/256k/320k)
-            mp3_sample_rate: Optional MP3 sample rate override (44100/48000)
-
+        
         Returns:
             Output file path
         """
@@ -376,9 +325,7 @@ class AudioSaver:
             output_path,
             sample_rate=sample_rate,
             format=output_format,
-            channels_first=True,
-            mp3_bitrate=mp3_bitrate,
-            mp3_sample_rate=mp3_sample_rate,
+            channels_first=True
         )
         
         # Delete input file if needed
@@ -396,8 +343,6 @@ class AudioSaver:
         sample_rate: int = 48000,
         format: Optional[str] = None,
         channels_first: bool = True,
-        mp3_bitrate: Optional[str] = None,
-        mp3_sample_rate: Optional[int] = None,
     ) -> List[str]:
         """
         Save audio batch
@@ -409,9 +354,7 @@ class AudioSaver:
             sample_rate: Sample rate
             format: Audio format
             channels_first: Tensor format flag
-            mp3_bitrate: Optional MP3 bitrate override (128k/192k/256k/320k)
-            mp3_sample_rate: Optional MP3 sample rate override (44100/48000)
-
+        
         Returns:
             List of saved file paths
         """
@@ -435,9 +378,7 @@ class AudioSaver:
                 output_path,
                 sample_rate=sample_rate,
                 format=format,
-                channels_first=channels_first,
-                mp3_bitrate=mp3_bitrate,
-                mp3_sample_rate=mp3_sample_rate,
+                channels_first=channels_first
             )
             saved_paths.append(saved_path)
         
@@ -589,8 +530,8 @@ def save_audio(
     sample_rate: int = 48000,
     format: Optional[str] = None,
     channels_first: bool = True,
-    mp3_bitrate: Optional[str] = None,
-    mp3_sample_rate: Optional[int] = None,
+    mp3_bitrate: str = "128k",
+    mp3_sample_rate: int = 48000,
 ) -> str:
     """
     Convenience function: save audio (using default configuration)
@@ -601,19 +542,13 @@ def save_audio(
         sample_rate: Sample rate
         format: Format (default flac)
         channels_first: Tensor format flag
-        mp3_bitrate: Optional MP3 bitrate override (128k/192k/256k/320k)
-        mp3_sample_rate: Optional MP3 sample rate override (44100/48000)
-
+        mp3_bitrate: MP3 bitrate used when format is mp3
+        mp3_sample_rate: MP3 output sample rate used when format is mp3
+    
     Returns:
         Saved file path
     """
     return _default_saver.save_audio(
-        audio_data,
-        output_path,
-        sample_rate,
-        format,
-        channels_first,
-        mp3_bitrate,
-        mp3_sample_rate,
+        audio_data, output_path, sample_rate, format, channels_first, mp3_bitrate, mp3_sample_rate
     )
 

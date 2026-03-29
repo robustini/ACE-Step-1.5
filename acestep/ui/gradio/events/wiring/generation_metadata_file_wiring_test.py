@@ -33,6 +33,8 @@ _EXPECTED_METADATA_KEYS = [
     "infer_method",
     "custom_timesteps",
     "audio_format",
+    "mp3_bitrate",
+    "mp3_sample_rate",
     "lm_temperature",
     "lm_cfg_scale",
     "lm_top_k",
@@ -87,14 +89,20 @@ class GenerationMetadataFileWiringTests(unittest.TestCase):
         for node in module.body:
             if not isinstance(node, ast.FunctionDef) or node.name != "_build_load_metadata_outputs":
                 continue
-            for inner in ast.walk(node):
-                if isinstance(inner, ast.Call) and isinstance(inner.func, ast.Attribute):
-                    if inner.func.attr == "append" and inner.args:
-                        arg = inner.args[0]
-                        if isinstance(arg, ast.Subscript) and isinstance(arg.slice, ast.Constant):
-                            self.assertEqual(arg.slice.value, "is_format_caption_state")
-                            return
-        self.fail("append(results_section['is_format_caption_state']) not found")
+            append_keys = []
+            for stmt in node.body:
+                if not isinstance(stmt, ast.Expr) or not isinstance(stmt.value, ast.Call):
+                    continue
+                call = stmt.value
+                if not isinstance(call.func, ast.Attribute) or call.func.attr != "append" or not call.args:
+                    continue
+                arg = call.args[0]
+                if isinstance(arg, ast.Subscript) and isinstance(arg.slice, ast.Constant):
+                    append_keys.append(arg.slice.value)
+            self.assertGreaterEqual(len(append_keys), 2)
+            self.assertEqual(append_keys[-2:], ["mp3_controls_row", "is_format_caption_state"])
+            return
+        self.fail("expected append order for mp3_controls_row and is_format_caption_state not found")
 
     def test_register_function_references_expected_generation_handlers(self):
         """Register helper should reference load-metadata and auto-uncheck handlers."""

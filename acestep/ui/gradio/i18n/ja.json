@@ -159,7 +159,11 @@
     "random_seed_info": "有効にすると自動的にシードを生成。",
     "audio_format_label": "オーディオフォーマット",
     "audio_format_info": "保存ファイルのオーディオフォーマット。",
-    "use_adg_label": "ADG を使用",
+
+    "mp3_bitrate_label": "MP3ビットレート",
+    "mp3_bitrate_info": "MP3エンコードのビットレート。デフォルトは128 kbpsです。",
+    "mp3_sample_rate_label": "MP3サンプルレート",
+    "mp3_sample_rate_info": "MP3出力のサンプルレート。デフォルトは48 kHzで、44.1 kHzも選べます。",    "use_adg_label": "ADG を使用",
     "use_adg_info": "角度ドメインガイダンスを有効化。",
     "shift_label": "シフト",
     "shift_info": "baseモデル用タイムステップシフト係数 (範囲 1.0~5.0、デフォルト 3.0)。turboモデルには無効。",

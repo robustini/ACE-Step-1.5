@@ -159,7 +159,11 @@
     "random_seed_info": "When enabled, generates a new random seed each time so every generation is unique. Disable this and set a fixed seed to reproduce a specific result.",
     "audio_format_label": "Audio Format",
     "audio_format_info": "FLAC = lossless, large files. MP3 = small files, slight quality loss. WAV 32-bit = studio quality, largest files. Opus/AAC = efficient lossy compression. Choose FLAC or WAV for production, MP3 for sharing.",
-    "use_adg_label": "Use ADG (Angle Domain Guidance)",
+
+    "mp3_bitrate_label": "MP3 Bitrate",
+    "mp3_bitrate_info": "MP3 encoding bitrate. Default is 128 kbps.",
+    "mp3_sample_rate_label": "MP3 Sample Rate",
+    "mp3_sample_rate_info": "MP3 output sample rate. Default is 48 kHz; 44.1 kHz is optional.",    "use_adg_label": "Use ADG (Angle Domain Guidance)",
     "use_adg_info": "Alternative guidance method that can improve prompt adherence with fewer artifacts than standard CFG. Try enabling if you get distortion at high guidance scales. Experimental — may not always improve results.",
     "shift_label": "Shift",
     "shift_info": "Controls the noise schedule timing. Higher values (3–5) concentrate denoising effort on early steps (better structure). Lower values (1–2) spread effort more evenly (finer details). Default 3.0. Only affects base models — turbo models ignore this.",

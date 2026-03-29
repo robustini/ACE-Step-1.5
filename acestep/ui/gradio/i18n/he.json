@@ -159,7 +159,11 @@
     "random_seed_info": "אפשר ליצירה אוטומטית של גרעינים.",
     "audio_format_label": "פורמט אודיו",
     "audio_format_info": "פורמט האודיו לשמירה.",
-    "use_adg_label": "שימוש ב-ADG",
+
+    "mp3_bitrate_label": "קצב סיביות MP3",
+    "mp3_bitrate_info": "קצב הסיביות של קידוד MP3. ברירת המחדל היא 128 kbps.",
+    "mp3_sample_rate_label": "קצב דגימה של MP3",
+    "mp3_sample_rate_info": "קצב הדגימה של פלט MP3. ברירת המחדל היא 48 kHz; 44.1 kHz זמין כאפשרות.",    "use_adg_label": "שימוש ב-ADG",
     "use_adg_info": "אפשר Angle Domain Guidance.",
     "shift_label": "Shift (הסטה)",
     "shift_info": "גורם הסטת צעדי זמן למודלי Base (טווח 1.0~5.0, ברירת מחדל 3.0). לא משפיע על מודלי Turbo.",

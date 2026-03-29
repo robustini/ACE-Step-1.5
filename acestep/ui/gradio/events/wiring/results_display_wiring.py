@@ -111,6 +111,9 @@ def register_results_restore_and_lrc_handlers(context: GenerationWiringContext) 
             generation_section["vocal_language"],
             generation_section["audio_duration"],
             generation_section["batch_size_input"],
+            generation_section["audio_format"],
+            generation_section["mp3_bitrate"],
+            generation_section["mp3_sample_rate"],
             generation_section["inference_steps"],
             generation_section["lm_temperature"],
             generation_section["lm_cfg_scale"],
@@ -128,6 +131,7 @@ def register_results_restore_and_lrc_handlers(context: GenerationWiringContext) 
             generation_section["fade_out_duration"],
             generation_section["latent_shift"],
             generation_section["latent_rescale"],
+            generation_section["mp3_controls_row"],
         ],
     )
 

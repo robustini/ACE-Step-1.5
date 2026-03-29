@@ -7,6 +7,16 @@ import gradio as gr
 from acestep.ui.gradio.i18n import t
 
 
+MP3_BITRATE_OPTIONS = [("128 kbps", "128k"), ("192 kbps", "192k"), ("256 kbps", "256k"), ("320 kbps", "320k")]
+MP3_SAMPLE_RATE_OPTIONS = [("48 kHz", 48000), ("44.1 kHz", 44100)]
+MP3_DEFAULT_BITRATE = "128k"
+MP3_DEFAULT_SAMPLE_RATE = 48000
+
+
+def update_mp3_output_controls(audio_format: str):
+    return gr.update(visible=audio_format == "mp3")
+
+
 def build_output_controls(
     service_pre_initialized: bool,
     service_mode: bool,
@@ -24,34 +34,64 @@ def build_output_controls(
     """
 
     params = init_params or {}
+    audio_format_value = params.get("audio_format", "mp3") if service_pre_initialized else "mp3"
+    mp3_bitrate_value = str(params.get("mp3_bitrate", MP3_DEFAULT_BITRATE) or MP3_DEFAULT_BITRATE).strip().lower()
+    if mp3_bitrate_value not in {value for _, value in MP3_BITRATE_OPTIONS}:
+        mp3_bitrate_value = MP3_DEFAULT_BITRATE
+    try:
+        mp3_sample_rate_value = int(params.get("mp3_sample_rate", MP3_DEFAULT_SAMPLE_RATE) or MP3_DEFAULT_SAMPLE_RATE)
+    except Exception:
+        mp3_sample_rate_value = MP3_DEFAULT_SAMPLE_RATE
+    if mp3_sample_rate_value not in {value for _, value in MP3_SAMPLE_RATE_OPTIONS}:
+        mp3_sample_rate_value = MP3_DEFAULT_SAMPLE_RATE
+
     with gr.Accordion(t("generation.advanced_output_section"), open=False, elem_classes=["has-info-container"]):
-        with gr.Row():
-            audio_format = gr.Dropdown(
-                choices=[
-                    ("FLAC", "flac"),
-                    ("MP3", "mp3"),
-                    ("Opus", "opus"),
-                    ("AAC", "aac"),
-                    ("WAV (16-bit)", "wav"),
-                    ("WAV (32-bit Float)", "wav32"),
-                ],
-                value="mp3",
-                label=t("generation.audio_format_label"),
-                info=t("generation.audio_format_info"),
-                elem_classes=["has-info-container"],
-                interactive=not service_mode,
-            )
-            score_scale = gr.Slider(
-                minimum=0.01,
-                maximum=1.0,
-                value=0.5,
-                step=0.01,
-                label=t("generation.score_sensitivity_label"),
-                info=t("generation.score_sensitivity_info"),
-                elem_classes=["has-info-container"],
-                scale=1,
-                visible=not service_mode,
-            )
+        with gr.Row(equal_height=False):
+            with gr.Column(scale=1):
+                audio_format = gr.Dropdown(
+                    choices=[
+                        ("FLAC", "flac"),
+                        ("MP3", "mp3"),
+                        ("Opus", "opus"),
+                        ("AAC", "aac"),
+                        ("WAV (16-bit)", "wav"),
+                        ("WAV (32-bit Float)", "wav32"),
+                    ],
+                    value=audio_format_value,
+                    label=t("generation.audio_format_label"),
+                    info=t("generation.audio_format_info"),
+                    elem_classes=["has-info-container"],
+                    interactive=not service_mode,
+                )
+                with gr.Row(visible=audio_format_value == "mp3") as mp3_controls_row:
+                    mp3_bitrate = gr.Dropdown(
+                        choices=MP3_BITRATE_OPTIONS,
+                        value=mp3_bitrate_value,
+                        label=t("generation.mp3_bitrate_label"),
+                        info=t("generation.mp3_bitrate_info"),
+                        elem_classes=["has-info-container"],
+                        interactive=not service_mode,
+                    )
+                    mp3_sample_rate = gr.Dropdown(
+                        choices=MP3_SAMPLE_RATE_OPTIONS,
+                        value=mp3_sample_rate_value,
+                        label=t("generation.mp3_sample_rate_label"),
+                        info=t("generation.mp3_sample_rate_info"),
+                        elem_classes=["has-info-container"],
+                        interactive=not service_mode,
+                    )
+            with gr.Column(scale=1):
+                score_scale = gr.Slider(
+                    minimum=0.01,
+                    maximum=1.0,
+                    value=0.5,
+                    step=0.01,
+                    label=t("generation.score_sensitivity_label"),
+                    info=t("generation.score_sensitivity_info"),
+                    elem_classes=["has-info-container"],
+                    scale=1,
+                    visible=not service_mode,
+                )
         with gr.Row():
             enable_normalization = gr.Checkbox(
                 label=t("generation.enable_normalization"),
@@ -106,8 +146,17 @@ def build_output_controls(
                 info=t("generation.latent_rescale_info"),
                 elem_classes=["has-info-container"],
             )
+    audio_format.change(
+        fn=update_mp3_output_controls,
+        inputs=[audio_format],
+        outputs=[mp3_controls_row],
+    )
+
     return {
         "audio_format": audio_format,
+        "mp3_bitrate": mp3_bitrate,
+        "mp3_sample_rate": mp3_sample_rate,
+        "mp3_controls_row": mp3_controls_row,
         "score_scale": score_scale,
         "enable_normalization": enable_normalization,
         "normalization_db": normalization_db,
